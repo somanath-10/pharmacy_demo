@@ -1,99 +1,85 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import Medicine, { IMedicine } from '../models/Medicine';
-import Formulation from '../models/Formulation';
-
+import Formulation, { IFormulation } from '../models/Formulation';
+import RawMaterial, { IRawMaterial } from '../models/RawMaterial';
 
 export const checkAvailability = async (req: Request, res: Response) => {
   try {
     const { medicineName, quantityRequested } = req.body;
-    const medicine: IMedicine | null = await Medicine.findOne({ name: medicineName });
+    const medicine = await Medicine.findOne({ name: medicineName });
 
     if (!medicine) {
-      return res.status(404).json({ 
-        available: false, 
-        message: "Medicine not found in catalog." 
-      });
+      return res.status(404).json({ message: "Medicine not found in catalog." });
     }
+
     if (medicine.stock >= quantityRequested) {
       medicine.stock -= quantityRequested;
       await medicine.save();
-
-      return res.status(200).json({
-        available: true,
-        message: `Success! ${quantityRequested} units of ${medicineName} sold.`,
-        remainingStock: medicine.stock
+      return res.status(200).json({ 
+        status: "Sold", 
+        message: "Medicine is available and has been dispensed." 
       });
     }
-    else {
-      console.log(`[System] Stock low for ${medicineName}. Triggering n8n...`);
+    console.log("Stock low. Checking manufacturing capability...");
 
-      const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/check-raw-materials';
+    const recipe = await Formulation.findOne({ medicineName: medicineName });
+    
+    if (!recipe) {
+      return res.status(400).json({ message: "Out of stock and no formulation found to make more." });
+    }
 
-      // Fire and Forget: We don't wait for n8n to finish, we just notify it.
-      // We send the medicine name so n8n can look up the Recipe (Formulation).
-      axios.post(N8N_WEBHOOK_URL, {
-        medicineName: medicine.name,
-        currentStock: medicine.stock,
-        shortage: quantityRequested - medicine.stock
-      }).catch(err => console.error("Failed to trigger n8n:", err.message));
+    let canManufacture = true;
+    const missingMaterials: any[] = [];
 
-      return res.status(200).json({
-        available: false,
-        message: `Insufficient stock. Manufacturing protocol initiated for ${medicineName}.`,
-        details: "Checking raw materials inventory..."
-      });
+    for (const ingredient of recipe.ingredients) {
+      
+      const rawMaterial = await RawMaterial.findOne({ name: ingredient.materialName });
+
+      // Calculate total needed (Amount per unit * Quantity of Medicine requested)
+      const totalNeeded = ingredient.amountRequired * quantityRequested;
+
+      if (!rawMaterial || rawMaterial.currentStock < totalNeeded) {
+        canManufacture = false;
+        missingMaterials.push({
+          name: ingredient.materialName,
+          needed: totalNeeded,
+          available: rawMaterial ? rawMaterial.currentStock : 0,
+          supplier: rawMaterial ? rawMaterial.supplierEmail : "Unknown"
+        });
+      }
+    }
+
+    if (canManufacture) {
+        // SCENARIO A: We have chemicals. Make the medicine.
+        // Trigger n8n to notify production team
+        await axios.post('https://your-n8n-instance.com/webhook/start-production', {
+            medicine: medicineName,
+            quantity: quantityRequested
+        });
+
+        return res.json({
+            status: "Production_Started",
+            available: false,
+            message: "Out of stock, but raw materials are available. Production initiated."
+        });
+
+    } else {
+        await axios.post('http://localhost:5678/webhook-test/order-raw-materials', {
+            medicine: medicineName,
+            missingList: missingMaterials 
+        })
+
+        return res.json({
+            status: "Procurement_Started",
+            available: false,
+            message: "Out of stock and missing raw materials. Suppliers have been contacted.",
+            missingIngredients: missingMaterials
+        });
     }
 
   } catch (error) {
-    return res.status(500).json({ error: "Server Error", details: error });
-  }
-};
-
-export const createMedicine = async (req: Request, res: Response) => {
-  try {
-    const { name, stock, price, isPrescriptionRequired,ingredients } = req.body;
-
-    const newMedicine = new Medicine({
-      name,
-      stock,
-      price,
-      isPrescriptionRequired
-    });
-
-    const formulation = new Formulation({
-        medicineName:name,
-        ingredients:ingredients
-    })
-
-    const savedMedicine = await newMedicine.save();
-    await formulation.save();
-    return res.status(201).json(savedMedicine);
-
-  } catch (error) {
-    return res.status(500).json({ error: "Could not create medicine", details: error });
-  }
-};
-
-
-
-export const updateStock = async (req: Request, res: Response) => {
-  try {
-    const { medicineName, newStockLevel } = req.body;
-
-    const medicine = await Medicine.findOneAndUpdate(
-      { name: medicineName },
-      { stock: newStockLevel },
-      { new: true } 
-    );
-
-    if (!medicine) {
-      return res.status(404).json({ message: "Medicine not found" });
-    }
-
-    return res.json({ message: "Stock updated manually", medicine });
-
-  } catch (error) {
-    return res.status(500).json({ error: "Update failed" });
+    console.error(error);
+    return res.status(500).json({ error: "Server Error" });
   }
 };
