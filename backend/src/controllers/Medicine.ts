@@ -51,9 +51,8 @@ export const checkAvailability = async (req: Request, res: Response) => {
     }
 
     if (canManufacture) {
-        // SCENARIO A: We have chemicals. Make the medicine.
-        // Trigger n8n to notify production team
-        await axios.post('https://your-n8n-instance.com/webhook/start-production', {
+
+        await axios.post('http://localhost:5678/webhook-test/start-production', {
             medicine: medicineName,
             quantity: quantityRequested
         });
