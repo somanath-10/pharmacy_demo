@@ -1,0 +1,1 @@
+{"version":3,"file":"Formulation.d.ts","sourceRoot":"","sources":["../../src/models/Formulation.ts"],"names":[],"mappings":"AAAA,OAAO,QAAQ,EAAE,EAAU,QAAQ,EAAE,MAAM,UAAU,CAAC;AAEtD,UAAU,WAAW;IACnB,YAAY,EAAE,MAAM,CAAC;IACrB,cAAc,EAAE,MAAM,CAAC;CACxB;AAED,MAAM,WAAW,YAAa,SAAQ,QAAQ;IAC5C,YAAY,EAAE,MAAM,CAAC;IACrB,WAAW,EAAE,WAAW,EAAE,CAAC;CAC5B;;;;;;;;AAgBD,wBAA8E"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"RawMaterial.d.ts","sourceRoot":"","sources":["../../src/models/RawMaterial.ts"],"names":[],"mappings":"AAAA,OAAO,QAAQ,EAAE,EAAU,QAAQ,EAAE,MAAM,UAAU,CAAC;AAEtD,MAAM,WAAW,YAAa,SAAQ,QAAQ;IAC5C,IAAI,EAAE,MAAM,CAAC;IACb,YAAY,EAAE,MAAM,CAAC;IACrB,IAAI,EAAE,MAAM,CAAC;IACb,aAAa,EAAE,MAAM,CAAC;IACtB,WAAW,CAAC,EAAE,MAAM,CAAC;CACtB;;;;;;;;AA0BD,wBAA8E"}

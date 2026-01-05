@@ -82,3 +82,46 @@ export const checkAvailability = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Server Error" });
   }
 };
+
+
+export const postMedicine = async (req: Request, res: Response) => {
+  try {
+    const { name, stock, price, description, isPrescriptionRequired } = req.body;
+
+    const newMedicine: IMedicine = new Medicine({
+      name,
+      stock,
+      price,
+      description,
+      isPrescriptionRequired
+    });
+
+    const savedMedicine = await newMedicine.save();
+    return res.status(201).json(savedMedicine);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server Error" });
+  }
+}
+
+export const restockMedicine = async (req: Request, res: Response) => {
+  try {
+    const { medicineName, quantity } = req.body;
+
+    const medicine = await Medicine.findOne({ name: medicineName });
+    if (!medicine) {
+      return res.status(404).json({ message: "Medicine not found." });
+    }
+
+    medicine.stock += quantity;
+    await medicine.save();
+
+    return res.status(200).json({ 
+      message: `Successfully restocked ${quantity} units of ${medicineName}.`,
+      currentStock: medicine.stock
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server Error" });
+  }
+}
